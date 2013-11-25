@@ -15,7 +15,7 @@ Accessories that have been added included
 
 A simple example
 
-    boil = Boiler()
+    boil = Boiler(300)
 
     boil.feed_pump(400)
 
@@ -30,3 +30,6 @@ A simple example
     boil.actual_heat()
 
     2055.4663531119345
+
+
+Efficiency can also be added.

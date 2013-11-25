@@ -14,6 +14,13 @@ class Boiler(object):
     4] Superheater
     """
 
+    def _check_eff(eff):
+        if eff > 1 or eff < 0:
+            raise ValueError("Efficiency should be in between zero "
+                             "and one.")
+        return eff
+
+
     def __init__(self, P1):
         r"""
         Initialising several attributes which are useful in simulating
@@ -25,16 +32,22 @@ class Boiler(object):
         self.air_heat = 0
         self.superheater_heat = 0
 
-    def feed_pump(self, P2):
+
+    def feed_pump(self, P2, eff=1):
         r"""
         The feed pump is used to deliver feed water to the boiler.
         Assumptions made:
         1] Input pressure is provided
         2] The output pressure is saturated liquid.
         """
+        eff = self._check_eff(eff)
         self.pump_present = True
         self.output_pressure_pump = P2
         self.pump_work = specific_volume*(P2 - self.input_pressure)
+        if eff != 1:
+            self.pump_work *= (1/eff)
+
+
     def economiser(self, f1, f2):
         r"""
         An economiser is a device in which the waste heat of the flue gases
@@ -62,6 +75,7 @@ class Boiler(object):
         self.flue_T2 = f2
         self.econ_T2 = self.econ_T1 + cpair*(self.flue_T1 - self.flue_T2)/cpwater
 
+
     def effectiveness(self):
         r"""
         Returns effectiveness of the economiser.
@@ -70,7 +84,8 @@ class Boiler(object):
             raise ValueError("No economiser present")
         return (self.econ_T2 - self.econ_T1)/(self.flue_T1 - self.econ_T1)
 
-    def air_preheater(self, Tp1, Tp2=None):
+
+    def air_preheater(self, Tp1, Tp2=None, eff=1):
         r"""
         The function of the air preheater is to increase the temperature
         of the air before it enters the furnace.
@@ -78,6 +93,7 @@ class Boiler(object):
         1] If the economiser is fit, input temperature of the economiser
            is the output of the air preheater.
         """
+        eff = self._check_eff(eff)
         if hasattr(self, "economiser_present"):
             Tp2 = self.flue_T2
         elif not Tp2:
@@ -85,14 +101,19 @@ class Boiler(object):
                              "and output temperature should be provided.")
         self.air_heat = cpair*(Tp2 - Tp1)
 
-    def boiler(self):
+        if eff != 1:
+            self.air_heat *= 1/eff
+
+
+    def boiler(self, eff=1):
         r"""
         The actual boiler
         Assumptions made
         1] Input of the boiler is saturated liquid.
         2] Output of the boiler is saturated vapour.
         So the heat is the difference in enthalpy at constant pressure.
-        """  
+        """
+        eff = self._check_eff(eff)
         if hasattr(self, "economiser_present"):
             Tb = self.econ_T2
             self.h1 = State(T=Tb, x=0).getEnthalpy()
@@ -109,12 +130,16 @@ class Boiler(object):
             Tb = State(P=Pb, x=1).getTemp()
         self.final_temp = Tb
         self.boiler_heat = self.h2 - self.h1
+        if eff != 1:
+            self.boiler_heat *= eff
 
-    def superheater(self, final_temp):
+
+    def superheater(self, final_temp, eff=1):
         r"""
         The function of the superheater is to increase the temperature
         above its saturation point.
         """
+        eff = self._check_eff(eff)
         if not hasattr(self, "boiler_heat"):
             raise ValueError("Please fit boiler as accessories alone cannot"
                              "do anything.")
@@ -123,7 +148,8 @@ class Boiler(object):
         else:
             self.superheater_heat = cpwater*(final_temp - self.final_temp)
         self.final_temp = final_temp
-
+        if eff != 1:
+            self.superheater_heat *= 1/eff
 
     def efficiency(self, heat_supplied):
         r"""
@@ -135,6 +161,7 @@ class Boiler(object):
         heat = self.boiler_heat - (self.economiser_heat + self.air_heat +
                                    self.pump_work + self.superheater_heat)
         return (heat/heat_supplied)
+
 
     def actual_heat(self):
         return self.boiler_heat - (self.economiser_heat + self.air_heat +
