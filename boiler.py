@@ -13,7 +13,7 @@ class Boiler(object):
     3] Air Preheater
     4] Superheater
     """
-
+    @staticmethod
     def _check_eff(eff):
         if eff > 1 or eff < 0:
             raise ValueError("Efficiency should be in between zero "
